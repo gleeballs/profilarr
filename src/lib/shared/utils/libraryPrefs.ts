@@ -38,6 +38,7 @@ export const RADARR_DEFAULT_COLUMNS: readonly RadarrToggleableColumn[] =
 export const SONARR_TOGGLEABLE_COLUMNS = [
 	'status',
 	'episodes',
+	'score',
 	'sizeOnDisk',
 	'releaseGroups',
 	'dateAdded',
@@ -82,6 +83,7 @@ export const SONARR_CARD_FIELDS = [
 	'profile',
 	'size',
 	'episodes',
+	'score',
 	'year',
 	'releaseGroups',
 	'status',
@@ -95,7 +97,8 @@ export const SONARR_CARD_DEFAULTS: readonly SonarrCardField[] = [
 	'monitored',
 	'profile',
 	'size',
-	'episodes'
+	'episodes',
+	'score'
 ];
 
 // =============================================================================

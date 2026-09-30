@@ -189,6 +189,42 @@
 			suggestions: (items) =>
 				[...new Set(items.map((s) => s.network).filter(Boolean) as string[])].sort()
 		},
+		{
+			key: 'score',
+			label: 'Score %',
+			description: 'Total episode score as a percentage of every episode at cutoff',
+			type: 'number',
+			accessor: (s) => (s.score?.scoredEpisodeCount ? Math.round(s.score.progress * 100) : null)
+		},
+		{
+			key: 'averageScore',
+			label: 'Avg Episode Score',
+			type: 'number',
+			accessor: (s) => (s.score?.scoredEpisodeCount ? s.score.averageScore : null)
+		},
+		{
+			key: 'lowestScore',
+			label: 'Lowest Episode Score',
+			type: 'number',
+			accessor: (s) => s.score?.lowestScore ?? null
+		},
+		{
+			key: 'episodesBelowCutoff',
+			label: 'Episodes Below Cutoff',
+			type: 'number',
+			accessor: (s) =>
+				s.score?.scoredEpisodeCount
+					? s.score.scoredEpisodeCount - s.score.episodesMeetingCutoff
+					: null
+		},
+		{
+			key: 'cutoffMet',
+			label: 'Score Cutoff Met',
+			description: 'Every downloaded episode has reached the profile cutoff score',
+			type: 'text',
+			accessor: (s) => (s.score?.scoredEpisodeCount ? (s.score.cutoffMet ? 'yes' : 'no') : null),
+			suggestions: () => ['yes', 'no']
+		},
 		{ key: 'year', label: 'Year', type: 'number', accessor: (s) => s.year ?? 0 },
 		{
 			key: 'status',
@@ -383,6 +419,7 @@
 
 	const sonarrColumnLabels: Record<SonarrToggleableColumn, string> = {
 		episodes: 'Episodes',
+		score: 'Score',
 		sizeOnDisk: 'Size',
 		releaseGroups: 'Release Group(s)',
 		status: 'Status',
@@ -434,6 +471,7 @@
 		profile: 'Profile',
 		size: 'Size',
 		episodes: 'Episodes',
+		score: 'Score',
 		year: 'Year',
 		releaseGroups: 'Release Group(s)',
 		status: 'Status',
@@ -518,8 +556,24 @@
 		sortPref.set({ key, direction });
 	}
 
+	// Radarr items carry a single file score. Sonarr series are compared by how
+	// close their episodes are to cutoff overall, with scoreless series last.
+	function scoreSortValue(item: any): number | null {
+		if (typeof item.customFormatScore === 'number') return item.customFormatScore;
+		return item.score?.scoredEpisodeCount ? item.score.progress : null;
+	}
+
 	function sortItems<T>(items: T[], key: string, direction: 'asc' | 'desc'): T[] {
 		return [...items].sort((a: any, b: any) => {
+			if (key === 'score') {
+				const aScore = scoreSortValue(a);
+				const bScore = scoreSortValue(b);
+				if (aScore === null && bScore === null) return 0;
+				if (aScore === null) return 1;
+				if (bScore === null) return -1;
+				return direction === 'asc' ? aScore - bScore : bScore - aScore;
+			}
+
 			if (
 				RADARR_RELEASE_DATE_KEYS.includes(key as (typeof RADARR_RELEASE_DATE_KEYS)[number]) ||
 				key === 'firstAired' ||
@@ -547,10 +601,6 @@
 				case 'year':
 					aVal = a.year ?? 0;
 					bVal = b.year ?? 0;
-					break;
-				case 'score':
-					aVal = a.customFormatScore ?? a.percentOfEpisodes ?? 0;
-					bVal = b.customFormatScore ?? b.percentOfEpisodes ?? 0;
 					break;
 				default:
 					return 0;

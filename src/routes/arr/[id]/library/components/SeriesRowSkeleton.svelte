@@ -15,7 +15,7 @@
 	</div>
 {:else if column.key === 'qualityProfileName'}
 	<div class="h-5 w-20 animate-pulse rounded-full bg-neutral-200 dark:bg-neutral-700"></div>
-{:else if column.key === 'episodes'}
+{:else if column.key === 'episodes' || column.key === 'score'}
 	<div class="h-5 w-14 animate-pulse rounded-full bg-neutral-200 dark:bg-neutral-700"></div>
 {:else if column.key === 'sizeOnDisk'}
 	<div class="h-4 w-16 animate-pulse rounded bg-neutral-200 dark:bg-neutral-700"></div>

@@ -1,4 +1,6 @@
 import { BaseArrClient, INTERACTIVE_SEARCH_TIMEOUT_MS } from '../base.ts';
+import { summarizeEpisodeScores } from '../episodeScores.ts';
+import { logger } from '$logger/logger.ts';
 import type {
 	SonarrSeries,
 	SonarrRelease,
@@ -13,6 +15,8 @@ import type {
 	ArrCommand,
 	RenamePreviewItem
 } from '../types.ts';
+
+const EPISODE_FILE_FETCH_CONCURRENCY = 10;
 
 /**
  * Sonarr API client
@@ -77,8 +81,48 @@ export class SonarrClient extends BaseArrClient {
 	}
 
 	/**
+	 * Fetch episode files for many series, a batch at a time.
+	 * Sonarr has no bulk episode file endpoint, so this is one request per
+	 * series. Series without files are skipped. A series whose request fails
+	 * maps to null so one bad series does not fail the whole library.
+	 */
+	async getEpisodeFilesBySeries(
+		seriesList: SonarrSeries[]
+	): Promise<Map<number, SonarrEpisodeFile[] | null>> {
+		const result = new Map<number, SonarrEpisodeFile[] | null>();
+
+		for (let index = 0; index < seriesList.length; index += EPISODE_FILE_FETCH_CONCURRENCY) {
+			const batch = seriesList.slice(index, index + EPISODE_FILE_FETCH_CONCURRENCY);
+			const loaded = await Promise.all(
+				batch.map(async (series) => {
+					if (getSeriesEpisodeFileCount(series) === 0) {
+						return [series.id, [] as SonarrEpisodeFile[]] as const;
+					}
+
+					try {
+						return [series.id, await this.getEpisodeFiles(series.id)] as const;
+					} catch (error) {
+						await logger.warn(`Failed to fetch episode files for "${series.title}"`, {
+							source: 'SonarrClient',
+							meta: { seriesId: series.id, error: error instanceof Error ? error.message : error }
+						});
+						return [series.id, null] as const;
+					}
+				})
+			);
+
+			for (const [seriesId, files] of loaded) {
+				result.set(seriesId, files);
+			}
+		}
+
+		return result;
+	}
+
+	/**
 	 * Fetch and compute library data (series-level, no episode details)
-	 * Makes 2 API calls: series and quality profiles
+	 * Makes 2 API calls (series and quality profiles), plus one episode file
+	 * call per series with files to aggregate custom format scores
 	 * @param profilarrProfileNames - Set of profile names from Profilarr databases
 	 */
 	async getLibrary(profilarrProfileNames?: Set<string>): Promise<SonarrLibraryItem[]> {
@@ -88,10 +132,13 @@ export class SonarrClient extends BaseArrClient {
 		]);
 
 		const profileMap = new Map(profiles.map((p) => [p.id, p]));
+		const episodeFilesBySeries = await this.getEpisodeFilesBySeries(allSeries);
 
 		return allSeries.map((series) => {
 			const profile = profileMap.get(series.qualityProfileId);
 			const profileName = profile?.name ?? 'Unknown';
+			const cutoffScore = profile?.cutoffFormatScore ?? 0;
+			const episodeFiles = episodeFilesBySeries.get(series.id) ?? null;
 
 			const seasons: SonarrSeasonItem[] = series.seasons.map((s) => ({
 				seasonNumber: s.seasonNumber,
@@ -100,7 +147,13 @@ export class SonarrClient extends BaseArrClient {
 				episodeFileCount: s.statistics?.episodeFileCount ?? 0,
 				totalEpisodeCount: s.statistics?.totalEpisodeCount ?? 0,
 				sizeOnDisk: s.statistics?.sizeOnDisk ?? 0,
-				percentOfEpisodes: s.statistics?.percentOfEpisodes ?? 0
+				percentOfEpisodes: s.statistics?.percentOfEpisodes ?? 0,
+				score: episodeFiles
+					? summarizeEpisodeScores(
+							episodeFiles.filter((file) => file.seasonNumber === s.seasonNumber),
+							cutoffScore
+						)
+					: null
 			}));
 
 			// Sonarr only exposes distinct release group lists (per season and aggregated
@@ -148,6 +201,7 @@ export class SonarrClient extends BaseArrClient {
 				totalEpisodeCount: series.statistics?.totalEpisodeCount ?? 0,
 				sizeOnDisk: series.statistics?.sizeOnDisk ?? 0,
 				percentOfEpisodes: series.statistics?.percentOfEpisodes ?? 0,
+				score: episodeFiles ? summarizeEpisodeScores(episodeFiles, cutoffScore) : null,
 				releaseGroups,
 				dateAdded: series.added,
 				seasons,
@@ -401,4 +455,19 @@ export class SonarrClient extends BaseArrClient {
 			moveFiles: true
 		});
 	}
+}
+
+/**
+ * Episode file count from series statistics, falling back to the per-season
+ * statistics. Undefined when Sonarr returned neither, so callers fetch.
+ */
+function getSeriesEpisodeFileCount(series: SonarrSeries): number | undefined {
+	if (series.statistics) return series.statistics.episodeFileCount;
+	if (series.seasons.every((season) => season.statistics)) {
+		return series.seasons.reduce(
+			(total, season) => total + (season.statistics?.episodeFileCount ?? 0),
+			0
+		);
+	}
+	return undefined;
 }

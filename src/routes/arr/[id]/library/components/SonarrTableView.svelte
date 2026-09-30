@@ -10,6 +10,7 @@
 	import SeriesRow from './SeriesRow.svelte';
 	import SeriesRowSkeleton from './SeriesRowSkeleton.svelte';
 	import SeasonTable from './SeasonTable.svelte';
+	import SeriesScoreIndicator from './SeriesScoreIndicator.svelte';
 
 	export let data: SonarrSeriesItem[];
 	export let loading = false;
@@ -22,6 +23,7 @@
 
 	const TOGGLEABLE_COLUMNS = [
 		'episodes',
+		'score',
 		'sizeOnDisk',
 		'releaseGroups',
 		'status',
@@ -49,6 +51,16 @@
 			sortable: true,
 			sortAccessor: (row) => row.percentOfEpisodes,
 			defaultSortDirection: 'desc'
+		},
+		{
+			key: 'score',
+			header: 'Score',
+			align: 'right',
+			width: 'w-56',
+			sortable: true,
+			sortAccessor: (row) => (row.score?.scoredEpisodeCount ? row.score.progress : null),
+			defaultSortDirection: 'desc',
+			sortNullsLast: true
 		},
 		{
 			key: 'sizeOnDisk',
@@ -121,6 +133,7 @@
 		totalEpisodeCount: 0,
 		sizeOnDisk: 0,
 		percentOfEpisodes: 0,
+		score: null,
 		dateAdded: '',
 		isProfilarrProfile: false
 	})) as unknown as SonarrSeriesItem[];
@@ -248,6 +261,8 @@
 				met={row.episodeFileCount === row.episodeCount}
 				mode="compact"
 			/>
+		{:else if column.key === 'score'}
+			<SeriesScoreIndicator score={row.score} />
 		{:else}
 			<SeriesRow {row} {column} {highlightGroups} />
 		{/if}

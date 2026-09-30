@@ -48,7 +48,7 @@
 			<!-- Card view: vertical stack -->
 			<div class="flex w-full flex-col gap-1">
 				<div class="flex items-center justify-between gap-2">
-					<span class="font-mono text-xs text-neutral-700 dark:text-neutral-300">
+					<span class="font-mono text-xs whitespace-nowrap text-neutral-700 dark:text-neutral-300">
 						{current.toLocaleString()}
 						<span class="text-neutral-400 dark:text-neutral-500">
 							/ {target.toLocaleString()}
@@ -93,7 +93,7 @@
 	<!-- Card view: vertical stack -->
 	<div class="flex flex-col gap-1">
 		<div class="flex items-center justify-between gap-2">
-			<span class="font-mono text-xs text-neutral-700 dark:text-neutral-300">
+			<span class="font-mono text-xs whitespace-nowrap text-neutral-700 dark:text-neutral-300">
 				{current.toLocaleString()}
 				<span class="text-neutral-400 dark:text-neutral-500">/ {target.toLocaleString()}</span>
 			</span>

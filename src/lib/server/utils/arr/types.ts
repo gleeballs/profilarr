@@ -576,6 +576,32 @@ export interface SonarrEpisodeItem {
 }
 
 /**
+ * Custom format score aggregated across a set of Sonarr episode files (a whole
+ * series or a single season). Each file is scored against the profile's
+ * per-episode cutoff, so the target is `cutoffScore × scoredEpisodeCount`.
+ */
+export interface SonarrScoreSummary {
+	/** Episode files contributing to the score */
+	scoredEpisodeCount: number;
+	/** Sum of custom format scores across all episode files */
+	totalScore: number;
+	/** Total the files would reach if every file sat exactly at the cutoff */
+	targetScore: number;
+	/** Per-episode cutoff score from the quality profile */
+	cutoffScore: number;
+	/** Mean episode score, rounded to the nearest integer */
+	averageScore: number;
+	/** Lowest episode score, or null when there are no files */
+	lowestScore: number | null;
+	/** Episode files whose score has reached the cutoff */
+	episodesMeetingCutoff: number;
+	/** totalScore / targetScore (0 when the profile has no cutoff score) */
+	progress: number;
+	/** Every episode file has reached the cutoff */
+	cutoffMet: boolean;
+}
+
+/**
  * Season summary for Sonarr library view
  */
 export interface SonarrSeasonItem {
@@ -586,6 +612,8 @@ export interface SonarrSeasonItem {
 	totalEpisodeCount: number;
 	sizeOnDisk: number;
 	percentOfEpisodes: number;
+	/** Null when the episode files for the series could not be fetched */
+	score: SonarrScoreSummary | null;
 }
 
 /**
@@ -610,6 +638,8 @@ export interface SonarrSeriesItem {
 	totalEpisodeCount: number;
 	sizeOnDisk: number;
 	percentOfEpisodes: number;
+	/** Null when the episode files for the series could not be fetched */
+	score: SonarrScoreSummary | null;
 	releaseGroups: string[];
 	dateAdded?: string;
 	isProfilarrProfile: boolean;

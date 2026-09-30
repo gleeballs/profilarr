@@ -21,8 +21,14 @@
 	import Tooltip from '$ui/tooltip/Tooltip.svelte';
 	import InfoModal from '$ui/modal/InfoModal.svelte';
 	import DateTime from '$ui/datetime/DateTime.svelte';
-	import type { SonarrSeriesItem, SonarrSeasonItem, SonarrEpisodeItem } from '$utils/arr/types.ts';
+	import type {
+		SonarrSeriesItem,
+		SonarrSeasonItem,
+		SonarrEpisodeItem,
+		SonarrScoreSummary
+	} from '$utils/arr/types.ts';
 	import { primaryReleaseGroup } from './releaseGroups.ts';
+	import SeriesScoreIndicator from './SeriesScoreIndicator.svelte';
 
 	export let series: SonarrSeriesItem;
 	export let baseUrl: string = '';
@@ -110,6 +116,7 @@
 		label: string;
 		episodeCount: number;
 		fileCount: number;
+		score: SonarrScoreSummary | null;
 	}
 
 	$: seasonRows = seasons
@@ -121,12 +128,20 @@
 			seasonNumber: s.seasonNumber,
 			label: s.seasonNumber === 0 ? 'Specials' : `Season ${s.seasonNumber}`,
 			episodeCount: s.episodeCount,
-			fileCount: s.episodeFileCount
+			fileCount: s.episodeFileCount,
+			score: s.score
 		}));
 
 	const seasonColumns = [
 		{ key: 'label', header: 'Season', align: 'left' as const, sortable: false },
-		{ key: 'episodes', header: 'Episodes', align: 'right' as const, width: 'w-28', sortable: false }
+		{
+			key: 'episodes',
+			header: 'Episodes',
+			align: 'right' as const,
+			width: 'w-28',
+			sortable: false
+		},
+		{ key: 'score', header: 'Score', align: 'right' as const, width: 'w-64', sortable: false }
 	];
 </script>
 
@@ -253,6 +268,9 @@
 				mode="compact"
 			/>
 		{/if}
+		{#if visibleFields.has('score') && series.episodeFileCount > 0}
+			<SeriesScoreIndicator score={series.score} tooltipPosition="top" />
+		{/if}
 		{#if visibleFields.has('rating') && series.ratings}
 			<span class="flex items-center gap-1 text-xs text-neutral-500 dark:text-neutral-400">
 				<Star size={12} class="text-yellow-500" />
@@ -333,6 +351,10 @@
 							</span>
 							<span class="text-neutral-400 dark:text-neutral-500">/ {row.episodeCount}</span>
 						</span>
+					{:else if column.key === 'score'}
+						<div class="flex justify-end">
+							<SeriesScoreIndicator score={row.score} mode="inline" tooltipPosition="left" />
+						</div>
 					{/if}
 				</svelte:fragment>
 

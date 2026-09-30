@@ -4,6 +4,7 @@
 	import type { Column } from '$ui/table/types';
 	import type { SonarrSeasonItem, SonarrEpisodeItem } from '$utils/arr/types.ts';
 	import EpisodeTable from './EpisodeTable.svelte';
+	import SeriesScoreIndicator from './SeriesScoreIndicator.svelte';
 
 	export let seasons: SonarrSeasonItem[];
 	export let episodesBySeasonNumber: Map<number, SonarrEpisodeItem[]>;
@@ -40,6 +41,16 @@
 			width: 'w-36',
 			sortable: true,
 			defaultSortDirection: 'desc'
+		},
+		{
+			key: 'score',
+			header: 'Score',
+			align: 'right',
+			width: 'w-56',
+			sortable: true,
+			sortAccessor: (row) => (row.score?.scoredEpisodeCount ? row.score.progress : null),
+			defaultSortDirection: 'desc',
+			sortNullsLast: true
 		},
 		{
 			key: 'sizeOnDisk',
@@ -81,6 +92,8 @@
 				met={row.episodeFileCount === row.episodeCount}
 				mode="compact"
 			/>
+		{:else if column.key === 'score'}
+			<SeriesScoreIndicator score={row.score} />
 		{:else if column.key === 'sizeOnDisk'}
 			<span class="font-mono text-xs text-neutral-700 dark:text-neutral-300"
 				>{formatSize(row.sizeOnDisk)}</span
